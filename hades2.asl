@@ -242,8 +242,8 @@ update
 onStart
 {
     vars.boss_killed = false;
-    vars.has_beat_hades = false;
-    vars.exit_to_hades = false;
+    vars.has_beat_chronos = false;
+    vars.exit_to_chronos = false;
 
     vars.still_in_arena = false;
 }
