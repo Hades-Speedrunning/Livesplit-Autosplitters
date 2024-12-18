@@ -207,7 +207,7 @@ update
         if (runtime_component != IntPtr.Zero)
         {
             /* This might break if the run goes over 99 minutes T_T */
-            current.run_time = game.ReadString(game.ReadPointer(runtime_component + 0x698), 0x8); // 48 8D 8E ? ? ? ? 48 8D 05 ? ? ? ? 4C 8B C0 66 0F 1F 44 00
+            current.run_time = game.ReadString(game.ReadPointer(runtime_component + 0x6A8), 0x8); // 48 8D 8E ? ? ? ? 48 8D 05 ? ? ? ? 4C 8B C0 66 0F 1F 44 00
             if (current.run_time == "PauseScr")
                 current.run_time = "0:0.10";
         }
