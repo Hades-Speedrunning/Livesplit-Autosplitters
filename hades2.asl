@@ -143,7 +143,7 @@ update
         }
 
         // ignore Uh-Oh!/King Vermin & Charybdis & Chronos (because of time offset)
-        if ((block_name == "GenericBossKillPresentation" || block_name == "HecateKillPresentation")
+        if (!vars.boss_killed && (block_name == "GenericBossKillPresentation" || block_name == "HecateKillPresentation")
             && !(current.map == "G_MiniBoss02" || current.map == "O_MiniBoss01" || current.map == "I_Boss01"))
         {
             vars.Log("Detected boss kill");
@@ -151,17 +151,17 @@ update
 
         }
 
-        if (block_name == "ChronosPhaseTransition")
+        if (!vars.chronos_phased && block_name == "ChronosPhaseTransition")
         {
             vars.chronos_phased = true;
         }
-        if (block_name == "PlayTextLines" && vars.chronos_phased)
+        if (!vars.has_beat_chronos && block_name == "PlayTextLines" && vars.chronos_phased)
         {
             vars.Log("Detected Chronos Kill");
             vars.has_beat_chronos = true;
         }
 
-        if (block_name == "LeaveRoomIPreBossPresentation")
+        if (!vars.exit_to_chronos && block_name == "LeaveRoomIPreBossPresentation")
         {
             vars.Log("Detected Sand Dive");
             vars.exit_to_chronos = true;
