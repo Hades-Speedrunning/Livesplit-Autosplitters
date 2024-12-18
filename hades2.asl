@@ -143,7 +143,7 @@ update
         }
 
         // ignore Uh-Oh!/King Vermin & Charybdis & Chronos (because of time offset)
-        if ((block_name == "GenericBossKillPresentation" || block_name == "HecateKillPresentation")
+        if (!vars.boss_killed && (block_name == "GenericBossKillPresentation" || block_name == "HecateKillPresentation")
             && !(current.map == "G_MiniBoss02" || current.map == "O_MiniBoss01" || current.map == "I_Boss01"))
         {
             vars.Log("Detected boss kill");
@@ -151,17 +151,17 @@ update
 
         }
 
-        if (block_name == "ChronosPhaseTransition")
+        if (!vars.chronos_phased && block_name == "ChronosPhaseTransition")
         {
             vars.chronos_phased = true;
         }
-        if (block_name == "PlayTextLines" && vars.chronos_phased)
+        if (!vars.has_beat_chronos && block_name == "PlayTextLines" && vars.chronos_phased)
         {
             vars.Log("Detected Chronos Kill");
             vars.has_beat_chronos = true;
         }
 
-        if (block_name == "LeaveRoomIPreBossPresentation")
+        if (!vars.exit_to_chronos && block_name == "LeaveRoomIPreBossPresentation")
         {
             vars.Log("Detected Sand Dive");
             vars.exit_to_chronos = true;
@@ -207,7 +207,7 @@ update
         if (runtime_component != IntPtr.Zero)
         {
             /* This might break if the run goes over 99 minutes T_T */
-            current.run_time = game.ReadString(game.ReadPointer(runtime_component + 0x698), 0x8); // 48 8D 8E ? ? ? ? 48 8D 05 ? ? ? ? 4C 8B C0 66 0F 1F 44 00
+            current.run_time = game.ReadString(game.ReadPointer(runtime_component + 0x6A8), 0x8); // 48 8D 8E ? ? ? ? 48 8D 05 ? ? ? ? 4C 8B C0 66 0F 1F 44 00
             if (current.run_time == "PauseScr")
                 current.run_time = "0:0.10";
         }
