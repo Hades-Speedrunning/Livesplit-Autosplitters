@@ -104,6 +104,37 @@ init
     vars.still_in_arena = false;
 
     vars.game_ui = IntPtr.Zero;
+
+    // Chambers
+    vars.HUB_PRE_RUN = "Hub_PreRun";
+
+    // Openings
+    vars.EREBUS_OPENING_01 = "F_Opening01";
+    vars.EREBUS_OPENING_02 = "F_Opening02";
+    vars.EREBUS_OPENING_03 = "F_Opening03";
+    vars.EPHYRA_OPENING_01 = "N_Opening01";
+
+    // MiniBosses
+    vars.KING_VERMIN_ARENA = "G_MiniBoss02";
+    vars.CHARYBDIS_ARENA = "O_MiniBoss01";
+    vars.TALOS_ARENA = "P_MiniBoss01";
+
+    // Bosses
+    vars.HECATE_ARENA = "F_Boss01";
+    vars.SIRENS_ARENA = "G_Boss01";
+    vars.CERBERUS_ARENA = "H_Boss01";
+    vars.CHRONOS_ARENA = "I_Boss01";
+    vars.POLYPHEMUS_ARENA = "N_Boss01";
+    vars.ERIS_ARENA = "O_Boss01";
+    vars.PROMETHEUS_ARENA = "P_Boss01";
+
+    // Post-Boss
+    vars.HECATE_POST_BOSS = "F_PostBoss01";
+    vars.SIRENS_POST_BOSS = "G_PostBoss01";
+    vars.CERBERUS_POST_BOSS = "H_PostBoss01";
+    vars.POLYPHEMUS_POST_BOSS = "N_PostBoss01";
+    vars.ERIS_POST_BOSS = "O_PostBoss01";
+    vars.PROMETHEUS_POST_BOSS = "P_PostBoss01";
 }
 
 update
@@ -142,12 +173,19 @@ update
             //vars.Log("(update) block_name: " + block_name);
         }
 
+        var boss_killed_block = block_name == "GenericBossKillPresentation" || block_name == "HecateKillPresentation";
+        var mini_boss_map = (
+            current.map == vars.KING_VERMIN_ARENA ||
+            current.map == vars.CHARYBDIS_ARENA ||
+            current.map == vars.CHRONOS_ARENA ||
+            current.map == vars.TALOS_ARENA
+        );
+
         // ignore Uh-Oh!/King Vermin & Charybdis & Chronos (because of time offset)
-        if (!vars.boss_killed && (block_name == "GenericBossKillPresentation" || block_name == "HecateKillPresentation")
-            && !(current.map == "G_MiniBoss02" || current.map == "O_MiniBoss01" || current.map == "I_Boss01"))
+        if (!vars.boss_killed && boss_killed_block && !mini_boss_map)
         {
             vars.Log("(update) Detected boss kill");
-            vars.Log("(update) block_name = " + block_name);
+            vars.Log("(update) block_name = " + block_name + ", current.map = " + current.map);
             vars.boss_killed = true;
         }
 
@@ -251,9 +289,17 @@ onStart
 start
 {
     // Start the timer if in the first room and the old timer is greater than the new (memory address holds the value from the previous run)
-    if ((current.map == "F_Opening01" ||current.map == "F_Opening02" ||current.map == "F_Opening03" || current.map=="N_Opening01")
-         && old.total_seconds > current.total_seconds)
+    // Apparently we can't use .Contains in ASL
+    var is_opening_chamber = (
+        current.map == vars.EREBUS_OPENING_01 ||
+        current.map == vars.EREBUS_OPENING_02 ||
+        current.map == vars.EREBUS_OPENING_03 ||
+        current.map == vars.EPHYRA_OPENING_01
+    );
+    if (old.total_seconds > current.total_seconds && is_opening_chamber)
+    {
         return true;
+    }
 }
 
 onSplit
