@@ -129,7 +129,7 @@ update
             if (block_name == null)
                 continue;
 
-            //vars.Log("sso block_name: " + block_name);
+            //vars.Log("(update) sso block_name: " + block_name);
         }
         else
         {
@@ -139,34 +139,35 @@ update
             if (block_name == null)
                 continue;
 
-            //vars.Log("block_name: " + block_name);
+            //vars.Log("(update) block_name: " + block_name);
         }
 
         // ignore Uh-Oh!/King Vermin & Charybdis & Chronos (because of time offset)
         if (!vars.boss_killed && (block_name == "GenericBossKillPresentation" || block_name == "HecateKillPresentation")
             && !(current.map == "G_MiniBoss02" || current.map == "O_MiniBoss01" || current.map == "I_Boss01"))
         {
-            vars.Log("Detected boss kill");
+            vars.Log("(update) Detected boss kill");
+            vars.Log("(update) block_name = " + block_name);
             vars.boss_killed = true;
-
         }
 
         if (!vars.chronos_phased && block_name == "ChronosPhaseTransition")
         {
+            vars.Log("(update) Detected chronos phased");
             vars.chronos_phased = true;
         }
+
         if (!vars.has_beat_chronos && block_name == "PlayTextLines" && vars.chronos_phased)
         {
-            vars.Log("Detected Chronos Kill");
+            vars.Log("(update) Detected Chronos kill");
             vars.has_beat_chronos = true;
         }
 
         if (!vars.exit_to_chronos && block_name == "LeaveRoomIPreBossPresentation")
         {
-            vars.Log("Detected Sand Dive");
+            vars.Log("(update) Detected sand dive");
             vars.exit_to_chronos = true;
         }
-
     }
 
 
@@ -219,9 +220,9 @@ update
         IntPtr map_data = game.ReadPointer((IntPtr)vars.world + 0x90); // 0x70 + 0x20
         if(map_data != IntPtr.Zero)
             current.map = game.ReadString(map_data, 0x10);
-            if (current.map != old.map){
-                vars.Log(current.map);
-            }
+            if (current.map != old.map)
+                vars.Log("(update) Map change: " + old.map + " -> " + current.map);
+
             if (vars.still_in_arena && current.map != old.map)
             {
                 vars.still_in_arena = false;
@@ -244,7 +245,6 @@ onStart
     vars.boss_killed = false;
     vars.has_beat_chronos = false;
     vars.exit_to_chronos = false;
-
     vars.still_in_arena = false;
 }
 
@@ -269,11 +269,9 @@ split
     // Split on Chronos Kill
     if (!vars.still_in_arena && vars.has_beat_chronos)
     {
-        vars.Log("Splitting for Chronos kill");
-
         // Disable boss kill detection until we leave the boss arena
         vars.still_in_arena = true;
-
+        vars.Log(current.run_time + " (split) Splitting for Chronos/Prometheus kill");
         return true;
     }
 
@@ -282,82 +280,78 @@ split
     // Split on Boss Kill
     if (settings["splitOnBossKill"] && !vars.still_in_arena && (vars.boss_killed || vars.exit_to_chronos))
     {
-        vars.Log("(splitOnBossKill) Splitting for sand dive or boss kill");
-
         // Disable boss kill detection until we leave the boss arena
         vars.still_in_arena = true;
 
+        vars.Log(current.run_time + " (splitOnBossKill) Splitting for sand dive or boss kill");
         return true;
     }
 
     // Split on run start if Crossroads Splits are enabled
-    if (settings["multiWep"] && settings["houseSplits"])
+    if (settings["multiWep"] && settings["houseSplits"] && current.map == vars.HUB_PRE_RUN && (old.total_seconds > current.total_seconds))
     {
-        if ( // starting a new run
-            current.map == "Hub_PreRun" &&
-            (old.total_seconds > current.total_seconds)
-        )
-        {
-            vars.Log("(Multiwep, House Splits) Splitting for house split");
-            return true;
-        }
-    }
-
-    // Split every chamber if Routed is enabled
-    if (settings["routed"] && entered_new_room)
-    {
-        vars.Log("(Routed) Splitting for chamber transition");
+        vars.Log(current.run_time + " (multiWep && houseSplits) Splitting for house split");
         return true;
     }
 
-
-    // Split on room transition
-    if (!settings["splitOnBossKill"] && entered_new_room)
+    if (entered_new_room)
     {
-        if ( // in post-boss room or hades fight
-            current.map == "F_PostBoss01" || current.map == "G_PostBoss01" ||
-            current.map == "H_PostBoss01" || current.map == "N_PostBoss01" ||
-            current.map == "O_PostBoss01" || current.map == "P_PostBoss01" ||
-            current.map == "I_Boss01"
-        )
+        // Split every chamber if Routed is enabled
+        if (settings["routed"])
         {
-            vars.Log("Splitting for chamber transition");
+            vars.Log(current.run_time +" (routed) Splitting for chamber transition: " + old.map + " -> " + current.map);
+            return true;
+        }
+
+        // Split on room transition
+        var in_post_boss_room = (
+            current.map == vars.HECATE_POST_BOSS ||
+            current.map == vars.SIRENS_POST_BOSS ||
+            current.map == vars.CERBERUS_POST_BOSS ||
+            current.map == vars.POLYPHEMUS_POST_BOSS ||
+            current.map == vars.ERIS_POST_BOSS ||
+            current.map == vars.PROMETHEUS_POST_BOSS
+        );
+
+        if (!settings["splitOnBossKill"] && current.map == vars.CHRONOS_ARENA || in_post_boss_room)
+        {
+            // ?
+            vars.Log(current.run_time + " (!splitOnBossKill) Splitting for chamber transition: " + current.map);
+            return true;
+        }
+
+        // Split when leaving interbiome
+        var left_post_boss_room = (
+            old.map == vars.HECATE_POST_BOSS ||
+            old.map == vars.SIRENS_POST_BOSS ||
+            old.map == vars.CERBERUS_POST_BOSS ||
+            old.map == vars.POLYPHEMUS_POST_BOSS ||
+            old.map == vars.ERIS_POST_BOSS ||
+            old.map == vars.PROMETHEUS_POST_BOSS
+        );
+
+        if (settings["midbiome"] && left_post_boss_room)
+        {
+            vars.Log(current.run_time + " (midbiome) Splitting for leaving interbiome: " + old.map);
+            return true;
+        }
+
+        // Split on entering boss arena
+        var in_boss_arena = (
+            current.map == vars.HECATE_ARENA ||
+            current.map == vars.SIRENS_ARENA ||
+            current.map == vars.CERBERUS_ARENA ||
+            current.map == vars.POLYPHEMUS_ARENA ||
+            current.map == vars.ERIS_ARENA ||
+            current.map == vars.PROMETHEUS_ARENA
+        );
+
+        if (settings["enterBossArena"] && in_boss_arena)
+        {
+            vars.Log(current.run_time + " (enterBossArena) Splitting for entering boss arena: " + current.map);
             return true;
         }
     }
-
-    // Split when leaving interbiome
-    if (settings["midbiome"] && entered_new_room)
-    {
-        if ( // left post-boss room
-            old.map == "F_PostBoss01" ||
-            old.map == "G_PostBoss01" ||
-            old.map == "H_PostBoss01" ||
-            old.map == "N_PostBoss01" ||
-            old.map == "O_PostBoss01" ||
-            old.map == "P_PostBoss01" 
-        )
-        {
-            vars.Log("Splitting for leaving interbiome");
-            return true;
-        }
-    }
-
-    // Split on entering boss arena
-    if (settings["enterBossArena"] && entered_new_room)
-    {
-        if ( // in boss arena
-            current.map == "F_Boss01" || current.map == "G_Boss01" ||
-            current.map == "H_Boss01" || current.map == "N_Boss01" ||
-            current.map == "O_Boss01" || current.map == "P_Boss01"
-        )
-        {
-            vars.Log("Splitting for entering boss arena");
-            return true;
-        }
-    }
-
- 
 }
 
 onReset
@@ -368,16 +362,17 @@ onReset
 
     vars.has_beat_hades = false;
     vars.boss_killed = false;
-
     vars.still_in_arena = false;
 }
 
 reset
 {
-  // Reset and clear state if Mel is currently in the courtyard.  Don't reset in multiweapon runs
-    if(!settings["multiWep"] && current.map == "Hub_PreRun")
+    // Reset and clear state if Mel is currently in the courtyard.  Don't reset in multiweapon runs
+    if(!settings["multiWep"] && current.map == vars.HUB_PRE_RUN)
+    {
+        vars.Log("(reset) Resetting for courtyard");
         return true;
-
+    }
 }
 
 gameTime
