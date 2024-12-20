@@ -23,6 +23,7 @@ startup
     settings.Add("multiWep", false, "Multi Weapon Run");
     settings.Add("houseSplits", false, "Use Crossroads Splits", "multiWep");
     settings.Add("enterBossArena", false, "Split when entering boss arena");
+    settings.Add("exitBossArena", false, "Split when exiting boss arena");
     settings.Add("splitOnBossKill", false, "Split on Boss Kills");
     settings.Add("midbiome", false, "Split when exiting inter-biome");
     settings.Add("routed", false, "Routed (per chamber)");
@@ -389,10 +390,9 @@ split
             current.map == vars.PROMETHEUS_POST_BOSS
         );
 
-        if (!settings["splitOnBossKill"] && current.map == vars.CHRONOS_ARENA || in_post_boss_room)
+        if (settings["exitBossArena"] && (current.map == vars.CHRONOS_ARENA || in_post_boss_room))
         {
-            // ?
-            vars.Log(current.run_time + " (!splitOnBossKill) Splitting for chamber transition: " + current.map);
+            vars.Log(current.run_time + " (exitBossArena) Splitting for exiting boss arena: " + old.map);
             return true;
         }
 
