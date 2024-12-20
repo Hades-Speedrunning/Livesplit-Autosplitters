@@ -22,9 +22,9 @@ startup
 
     settings.Add("multiWep", false, "Multi Weapon Run");
     settings.Add("houseSplits", false, "Use Crossroads Splits", "multiWep");
-    settings.Add("enterBossArena", false, "Split when entering boss arena");
+    settings.Add("enterBossArena", true, "Split when entering boss arena");
     settings.Add("exitBossArena", false, "Split when exiting boss arena");
-    settings.Add("splitOnBossKill", false, "Split on Boss Kills");
+    settings.Add("splitOnBossKill", true, "Split on Boss Kills");
     settings.Add("midbiome", false, "Split when exiting inter-biome");
     settings.Add("routed", false, "Routed (per chamber)");
 }
