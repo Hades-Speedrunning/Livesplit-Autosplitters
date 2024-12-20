@@ -96,7 +96,7 @@ init
     old.total_seconds = 0.5f;
 
     vars.time_split = current.run_time.Split(':', '.');
-    vars.has_beat_chronos = false;
+    vars.has_beat_final_boss = false;
     vars.boss_killed = false;
     vars.exit_to_chronos = false;
     vars.chronos_phased = false;
@@ -175,7 +175,7 @@ update
         }
 
         /*
-        This reduces some duplicate blocks showing in the logs.
+        Ugly, but this reduces some duplicate blocks from detecting & showing in the logs.
         There are still some duplicates, but much better than without.
         */
         // Ignore 3 in a row
@@ -201,15 +201,16 @@ update
         vars.Log("(update) Encountered block: " + block_name);
 
         var boss_killed_block = block_name == "GenericBossKillPresentation" || block_name == "HecateKillPresentation";
-        var mini_boss_map = (
+        var ignored_boss_map = (
             current.map == vars.KING_VERMIN_ARENA ||
             current.map == vars.CHARYBDIS_ARENA ||
+            current.map == vars.TALOS_ARENA ||
             current.map == vars.CHRONOS_ARENA ||
-            current.map == vars.TALOS_ARENA
+            current.map == vars.PROMETHEUS_ARENA
         );
 
-        // ignore Uh-Oh!/King Vermin & Charybdis & Chronos (because of time offset)
-        if (!vars.boss_killed && boss_killed_block && !mini_boss_map)
+        // Ignore mini-bosses that trigger GenericBossKillPresentation, and Chronos/Prometheus
+        if (!vars.boss_killed && boss_killed_block && !ignored_boss_map)
         {
             vars.Log("(update) Detected boss kill");
             vars.boss_killed = true;
@@ -221,10 +222,11 @@ update
             vars.chronos_phased = true;
         }
 
-        if (!vars.has_beat_chronos && block_name == "PlayTextLines" && vars.chronos_phased)
+        if (!vars.has_beat_final_boss && 
+            (block_name == "PlayTextLines" && vars.chronos_phased || block_name == "PrometheusKillPresentation"))
         {
-            vars.Log("(update) Detected Chronos kill");
-            vars.has_beat_chronos = true;
+            vars.Log("(update) Detected Chronos/Prometheus kill");
+            vars.has_beat_final_boss = true;
         }
 
         if (!vars.exit_to_chronos && block_name == "LeaveRoomIPreBossPresentation")
@@ -291,7 +293,7 @@ update
             {
                 vars.still_in_arena = false;
                 vars.boss_killed = false;
-                vars.has_beat_chronos = false;
+                vars.has_beat_final_boss = false;
                 vars.exit_to_chronos = false;
             }
     }
@@ -307,7 +309,7 @@ update
 onStart
 {
     vars.boss_killed = false;
-    vars.has_beat_chronos = false;
+    vars.has_beat_final_boss = false;
     vars.exit_to_chronos = false;
     vars.still_in_arena = false;
 }
@@ -331,16 +333,18 @@ start
 onSplit
 {
     vars.boss_killed = false;
-    vars.has_beat_chronos = false;
+    vars.has_beat_final_boss = false;
     vars.chronos_phased = false;
     vars.exit_to_chronos = false;
 }
 
 split
 {
-    // Split on Chronos Kill
-    if (!vars.still_in_arena && vars.has_beat_chronos)
+    // Split on Chronos/Prometheus Kill
+    if (!vars.still_in_arena && vars.has_beat_final_boss)
     {
+        vars.Log("(split) Splitting for Chronos/Prometheus kill");
+
         // Disable boss kill detection until we leave the boss arena
         vars.still_in_arena = true;
         vars.Log(current.run_time + " (split) Splitting for Chronos/Prometheus kill");
