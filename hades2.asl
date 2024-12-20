@@ -104,6 +104,7 @@ init
     vars.still_in_arena = false;
 
     vars.game_ui = IntPtr.Zero;
+    vars.block_history = new string[4];
 
     // Chambers
     vars.HUB_PRE_RUN = "Hub_PreRun";
@@ -173,6 +174,32 @@ update
             //vars.Log("(update) block_name: " + block_name);
         }
 
+        /*
+        This reduces some duplicate blocks showing in the logs.
+        There are still some duplicates, but much better than without.
+        */
+        // Ignore 3 in a row
+        if (block_name == vars.block_history[0] && block_name == vars.block_history[1])
+            continue;
+
+        // Ignore when it starts to alternate - ABAB -> A dissallowed
+        if (block_name == vars.block_history[1] && block_name == vars.block_history[3] &&
+            vars.block_history[0] == vars.block_history[2])
+            continue;
+
+        // Ignore when it starts to alternate-ish - ABAB -> B dissallowed
+        if (block_name == vars.block_history[0] && block_name == vars.block_history[2] &&
+            vars.block_history[1] == vars.block_history[3])
+            continue;
+
+        // Update history
+        vars.block_history[3] = vars.block_history[2];
+        vars.block_history[2] = vars.block_history[1];
+        vars.block_history[1] = vars.block_history[0];
+        vars.block_history[0] = block_name;
+
+        vars.Log("(update) Encountered block: " + block_name);
+
         var boss_killed_block = block_name == "GenericBossKillPresentation" || block_name == "HecateKillPresentation";
         var mini_boss_map = (
             current.map == vars.KING_VERMIN_ARENA ||
@@ -185,7 +212,6 @@ update
         if (!vars.boss_killed && boss_killed_block && !mini_boss_map)
         {
             vars.Log("(update) Detected boss kill");
-            vars.Log("(update) block_name = " + block_name + ", current.map = " + current.map);
             vars.boss_killed = true;
         }
 
