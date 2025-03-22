@@ -5,6 +5,7 @@
         Museus: Routed, midbiome, enter boss arena, overhaul of logic and sig scanning
         cgull: House splits + splits on boss kill, revamp for Hades II.
         iDeathHD: solved the 23 length string crisis of 2024
+        Sam C. (froggy) : Olympic & Warsong updates
 */
 
 state("Hades2")
@@ -22,8 +23,8 @@ startup
 
     settings.Add("multiWep", false, "Multi Weapon Run");
     settings.Add("houseSplits", false, "Use Crossroads Splits", "multiWep");
-    settings.Add("enterBossArena", false, "Split when entering boss arena");
-    settings.Add("splitOnBossKill", false, "Split on Boss Kills");
+    settings.Add("enterBossArena", true, "Split when entering boss arena");
+    settings.Add("splitOnBossKill", true, "Split on Boss Kills");
     settings.Add("midbiome", false, "Split when exiting inter-biome");
     settings.Add("routed", false, "Routed (per chamber)");
 }
@@ -70,7 +71,7 @@ init
                 vars.world = signature_scanner.Scan(world_signature_target);
                 IntPtr player_manager = signature_scanner.Scan(player_manager_signature_target);
 
-                vars.screen_manager = game.ReadPointer(app + 0x4F8); // 48 8B 8F ? ? ? ? E8 ? ? ? ? 48 8B D8 48 85 C0 0F 84 ? ? ? ? 48 8B 88
+                vars.screen_manager = game.ReadPointer(app + 0x4F0); // 48 8B 8F ? ? ? ? E8 ? ? ? ? 48 8B D8 48 85 C0 0F 84 ? ? ? ? 48 8B 88
                 vars.current_player = game.ReadPointer(game.ReadPointer(player_manager + 0x18));
                 // vars.current_block_count = game.ReadValue<int>((IntPtr)vars.current_player + 0x50);
 
@@ -96,10 +97,8 @@ init
     old.total_seconds = 0.5f;
 
     vars.time_split = current.run_time.Split(':', '.');
-    vars.has_beat_chronos = false;
+    vars.has_beat_final_boss = false;
     vars.boss_killed = false;
-    vars.exit_to_chronos = false;
-    vars.chronos_phased = false;
 
     vars.still_in_arena = false;
 
@@ -111,9 +110,8 @@ update
     if (!(vars.InitComplete))
         return false;
 
-
     IntPtr hash_table = game.ReadPointer((IntPtr) vars.current_player + 0x48);
-    for(int i = 0; i < 4; i++)
+    for(int i = 0; i < 5; i++)
     {
         IntPtr block = game.ReadPointer(hash_table + 0x8 * i);
         if(block == IntPtr.Zero)
@@ -121,15 +119,27 @@ update
 
         string block_name = "";
 
+        bool isChonosKill = (game.ReadValue<byte>(block + 23) & 0x0F) == 0x0F;
         bool isSSOString = (game.ReadValue<byte>(block + 23) & 0x80) == 0;
-        if (isSSOString)
+
+        if (isChonosKill)
+        {
+            block = game.ReadPointer(block + 0x18);
+            block_name = game.ReadString(block, 128);
+
+            if (block_name == null)
+                continue;
+
+            // vars.Log("(update) chronos block_name: " + block_name);
+        }
+        else if (isSSOString)
         {
             block_name = game.ReadString(block, 24);
 
             if (block_name == null)
                 continue;
 
-            //vars.Log("sso block_name: " + block_name);
+            //vars.Log("(update) sso block_name: " + block_name);
         }
         else
         {
@@ -139,44 +149,38 @@ update
             if (block_name == null)
                 continue;
 
-            //vars.Log("block_name: " + block_name);
+            //vars.Log("(update) block_name: " + block_name);
         }
 
-        // ignore Uh-Oh!/King Vermin & Charybdis & Chronos (because of time offset)
-        if (!vars.boss_killed && (block_name == "GenericBossKillPresentation" || block_name == "HecateKillPresentation")
-            && !(current.map == "G_MiniBoss02" || current.map == "O_MiniBoss01" || current.map == "I_Boss01"))
+        // vars.Log("(update) Encountered block: " + block_name);
+
+        var boss_killed_block = block_name == "GenericBossKillPresentation" || block_name == "HecateKillPresentation" || block_name == "PrometheusKillPresentation";
+        var ignored_boss_map = (
+            current.map == "G_MiniBoss02" || current.map == "O_MiniBoss01" || // Uh-Oh! || Charybdis
+            current.map == "P_MiniBoss01" || current.map == "Q_MiniBoss02" || // Talos || _ of Typhon
+            current.map == "Q_MiniBoss03" || current.map == "Q_MiniBoss05" || // _ of Typhon
+            current.map == "I_Boss01" || current.map == "Q_Boss01" // Chronos - handled by has_beat_final_boss Typhon - handled by has_beat_final_boss
+        );
+        if (!vars.boss_killed && boss_killed_block && !ignored_boss_map)
         {
-            vars.Log("Detected boss kill");
+            vars.Log("(update) Detected boss kill");
             vars.boss_killed = true;
-
         }
 
-        if (!vars.chronos_phased && block_name == "ChronosPhaseTransition")
+        if (!vars.has_beat_final_boss &&
+            (block_name == "ChronosKillPresentation" || (block_name == "GenericBossKillPresentation" && current.map == "Q_Boss01")))
         {
-            vars.chronos_phased = true;
+            vars.Log("(update) Detected Chronos/Typhon kill");
+            vars.has_beat_final_boss = true;
         }
-        if (!vars.has_beat_chronos && block_name == "PlayTextLines" && vars.chronos_phased)
-        {
-            vars.Log("Detected Chronos Kill");
-            vars.has_beat_chronos = true;
-        }
-
-        if (!vars.exit_to_chronos && block_name == "LeaveRoomIPreBossPresentation")
-        {
-            vars.Log("Detected Sand Dive");
-            vars.exit_to_chronos = true;
-        }
-
     }
-
 
     // Get the array of screen IntPtrs and iterate to find InGameUI screen
     if (vars.screen_manager != IntPtr.Zero)
     {
-        IntPtr screen_vector_begin = game.ReadPointer((IntPtr)vars.screen_manager + 0x48);
+        IntPtr screen_vector_begin = game.ReadPointer((IntPtr)vars.screen_manager + 0x48); // sgg::ScreenManager mScreens
         IntPtr screen_vector_end = game.ReadPointer((IntPtr)vars.screen_manager + 0x50);
 
-        // 64-bit IntPtr are 8 bytes each, so divide by 8 to get number of screens
         var num_screens = (screen_vector_end.ToInt64() - screen_vector_begin.ToInt64()) / 8;
 
         // Maybe only loop once to find game_ui, not sure if pointer is destructed anytime.
@@ -187,9 +191,8 @@ update
                 continue;
 
             IntPtr screen_vtable = game.ReadPointer(current_screen); // Deref to get vtable
-            IntPtr get_type_method = game.ReadPointer(screen_vtable + 0x50); // Unlikely to change <--- I lied
-
-            int screen_type = game.ReadValue<int>(get_type_method + 0x1);
+            IntPtr get_type_method = game.ReadPointer(screen_vtable + 0x50); // sgg::GameScreen_vtbl GetType
+            int screen_type = game.ReadValue<int>(get_type_method + 0x1); // sgg::ScreenType
 
             // InGameUI is screen type 7
             if ((screen_type & 0x7) == 7) {
@@ -199,15 +202,14 @@ update
         }
     }
 
-
     /* Get our current run time */
-    if (vars.game_ui != IntPtr.Zero)
+    if (vars.game_ui != IntPtr.Zero) // sgg::InGameUI
     {
-        IntPtr runtime_component = game.ReadPointer((IntPtr)vars.game_ui + 0x2F8); // Possible to change if they adjust the UI class
+        IntPtr runtime_component = game.ReadPointer((IntPtr)vars.game_ui + 0x2F8); // 0x2F8 = mElapsedRunTimeText
         if (runtime_component != IntPtr.Zero)
         {
             /* This might break if the run goes over 99 minutes T_T */
-            current.run_time = game.ReadString(game.ReadPointer(runtime_component + 0x6A8), 0x8); // 48 8D 8E ? ? ? ? 48 8D 05 ? ? ? ? 4C 8B C0 66 0F 1F 44 00
+            current.run_time = game.ReadString(game.ReadPointer(runtime_component + 0x6B0), 0x8); // 48 8D 8E ? ? ? ? 48 8D 05 ? ? ? ? 4C 8B C0 66 0F 1F 44 00
             if (current.run_time == "PauseScr")
                 current.run_time = "0:0.10";
         }
@@ -219,15 +221,14 @@ update
         IntPtr map_data = game.ReadPointer((IntPtr)vars.world + 0x90); // 0x70 + 0x20
         if(map_data != IntPtr.Zero)
             current.map = game.ReadString(map_data, 0x10);
-            if (current.map != old.map){
-                vars.Log(current.map);
-            }
+            if (current.map != old.map)
+                vars.Log("(update) Map change: " + old.map + " -> " + current.map);
+
             if (vars.still_in_arena && current.map != old.map)
             {
                 vars.still_in_arena = false;
                 vars.boss_killed = false;
-                vars.has_beat_chronos = false;
-                vars.exit_to_chronos = false;
+                vars.has_beat_final_boss = false;
             }
     }
 
@@ -242,86 +243,79 @@ update
 onStart
 {
     vars.boss_killed = false;
-    vars.has_beat_chronos = false;
-    vars.exit_to_chronos = false;
-
+    vars.has_beat_final_boss = false;
     vars.still_in_arena = false;
 }
 
 start
 {
     // Start the timer if in the first room and the old timer is greater than the new (memory address holds the value from the previous run)
-    if ((current.map == "F_Opening01" ||current.map == "F_Opening02" ||current.map == "F_Opening03" || current.map=="N_Opening01")
-         && old.total_seconds > current.total_seconds)
+    var is_opening_chamber = (
+        current.map == "F_Opening01" || current.map == "F_Opening02" || // Erebus
+        current.map == "F_Opening03" || current.map=="N_Opening01" // Erebus || Ephyrya
+    );
+    if (old.total_seconds > current.total_seconds && is_opening_chamber)
+    {
         return true;
+    }
 }
 
 onSplit
 {
     vars.boss_killed = false;
-    vars.has_beat_chronos = false;
-    vars.chronos_phased = false;
-    vars.exit_to_chronos = false;
+    vars.has_beat_final_boss = false;
 }
 
 split
 {
-    // Split on Chronos Kill
-    if (!vars.still_in_arena && vars.has_beat_chronos)
+    // Split on Chronos/Typhon Kill
+    if (!vars.still_in_arena && vars.has_beat_final_boss)
     {
-        vars.Log("Splitting for Chronos kill");
-
         // Disable boss kill detection until we leave the boss arena
         vars.still_in_arena = true;
-
+        vars.Log(current.run_time + " (split) Splitting for Chronos/Typhon kill");
         return true;
     }
 
-    var entered_new_room = current.map != old.map;
-
     // Split on Boss Kill
-    if (settings["splitOnBossKill"] && !vars.still_in_arena && (vars.boss_killed || vars.exit_to_chronos))
+    if (settings["splitOnBossKill"] && !vars.still_in_arena && vars.boss_killed)
     {
-        vars.Log("(splitOnBossKill) Splitting for sand dive or boss kill");
-
         // Disable boss kill detection until we leave the boss arena
         vars.still_in_arena = true;
 
+        vars.Log(current.run_time + " (splitOnBossKill) Splitting for boss kill");
         return true;
     }
 
     // Split on run start if Crossroads Splits are enabled
     if (settings["multiWep"] && settings["houseSplits"])
     {
-        if ( // starting a new run
-            current.map == "Hub_PreRun" &&
-            (old.total_seconds > current.total_seconds)
-        )
+        if (current.map == "Hub_PreRun" && (old.total_seconds > current.total_seconds))
         {
-            vars.Log("(Multiwep, House Splits) Splitting for house split");
+            vars.Log(current.run_time + " (multiWep && houseSplits) Splitting for house split");
             return true;
         }
     }
 
+    var entered_new_room = current.map != old.map;
+
     // Split every chamber if Routed is enabled
     if (settings["routed"] && entered_new_room)
     {
-        vars.Log("(Routed) Splitting for chamber transition");
+        vars.Log(current.run_time +" (routed) Splitting for chamber transition: " + old.map + " -> " + current.map);
         return true;
     }
 
-
     // Split on room transition
+    // TODO check in Chronos/Typhon room ??
     if (!settings["splitOnBossKill"] && entered_new_room)
     {
-        if ( // in post-boss room or hades fight
-            current.map == "F_PostBoss01" || current.map == "G_PostBoss01" ||
-            current.map == "H_PostBoss01" || current.map == "N_PostBoss01" ||
-            current.map == "O_PostBoss01" || current.map == "P_PostBoss01" ||
-            current.map == "I_Boss01"
-        )
+        if (current.map == "F_PostBoss01" || current.map == "G_PostBoss01" || // Erebus/Hecate || Oceanus/Sirens
+            current.map == "H_PostBoss01" || current.map == "N_PostBoss01" || // Fields/Cerberus || Ephyra/Polyphemus
+            current.map == "O_PostBoss01" || current.map == "P_PostBoss01" || // Rift/Eris || Olympus/Prometheus
+            current.map == "I_Boss01" || current.map == "Q_Boss01") //  Tartarus/Chronos|| Summit/Typhon
         {
-            vars.Log("Splitting for chamber transition");
+            vars.Log(current.run_time + " (!splitOnBossKill) Splitting for exiting boss arena: " + old.map);
             return true;
         }
     }
@@ -329,16 +323,11 @@ split
     // Split when leaving interbiome
     if (settings["midbiome"] && entered_new_room)
     {
-        if ( // left post-boss room
-            old.map == "F_PostBoss01" ||
-            old.map == "G_PostBoss01" ||
-            old.map == "H_PostBoss01" ||
-            old.map == "N_PostBoss01" ||
-            old.map == "O_PostBoss01" ||
-            old.map == "P_PostBoss01" 
-        )
+        if (old.map == "F_PostBoss01" || old.map == "G_PostBoss01" || // Erebus/Hecate || Oceanus/Sirens
+            old.map == "H_PostBoss01" || old.map == "N_PostBoss01" || // Fields/Cerberus || Ephyra/Polyphemus
+            old.map == "O_PostBoss01" || old.map == "P_PostBoss01") // Rift/Eris || // Olympus/Prometheus
         {
-            vars.Log("Splitting for leaving interbiome");
+            vars.Log(current.run_time + " (midbiome) Splitting for leaving interbiome: " + old.map);
             return true;
         }
     }
@@ -346,18 +335,15 @@ split
     // Split on entering boss arena
     if (settings["enterBossArena"] && entered_new_room)
     {
-        if ( // in boss arena
-            current.map == "F_Boss01" || current.map == "G_Boss01" ||
-            current.map == "H_Boss01" || current.map == "N_Boss01" ||
-            current.map == "O_Boss01" || current.map == "P_Boss01"
-        )
+        if (current.map == "F_Boss01" || current.map == "G_Boss01" || // Erebus/Hecate || Oceanus/Sirens
+            current.map == "H_Boss01" || current.map == "I_Boss01" || // Fields/Cerberus || Tartarus/Chronos
+            current.map == "N_Boss01" || current.map == "O_Boss01" || // Ephyra/Polyphemus || Rift/Eris
+            current.map == "P_Boss01" || current.map == "Q_Boss01") // Olympus/Prometheus || Summit/Typhon
         {
-            vars.Log("Splitting for entering boss arena");
+            vars.Log(current.run_time + " (enterBossArena) Splitting for entering boss arena: " + current.map);
             return true;
         }
     }
-
- 
 }
 
 onReset
@@ -366,18 +352,18 @@ onReset
     current.total_seconds = 0.5f;
     old.total_seconds = 0.5f;
 
-    vars.has_beat_hades = false;
     vars.boss_killed = false;
-
-    vars.still_in_arena = false;
+    vars.has_beat_final_boss = false;
 }
 
 reset
 {
-  // Reset and clear state if Mel is currently in the courtyard.  Don't reset in multiweapon runs
+    // Reset and clear state if Mel is currently in the courtyard.  Don't reset in multiweapon runs
     if(!settings["multiWep"] && current.map == "Hub_PreRun")
+    {
+        vars.Log("(reset) Resetting for courtyard");
         return true;
-
+    }
 }
 
 gameTime
