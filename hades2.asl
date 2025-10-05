@@ -53,9 +53,12 @@ init
                 var signature_scanner = new SignatureScanner(game, engine.BaseAddress, engine.ModuleMemorySize);
 
                 /* Signatures */
-                var app_signature_target = new SigScanTarget(3, "48 8B 05 ?? ?? ?? ?? 48 8B B8 ?? ?? ?? ?? 48 8B 4F"); // rip = 7
-                var world_signature_target = new SigScanTarget(3, "48 8B 05 ?? ?? ?? ?? 48 8D 8E ?? ?? ?? ?? 33 D2");
-                var player_manager_signature_target = new SigScanTarget(3, "48 8B 15 ?? ?? ?? ?? 48 FF C3 E9 ?? ?? ?? ?? 0F 29 74 24");
+                // sgg:App::Instance : MOV qword ptr [sgg::App::INSTANCE]
+                var app_signature_target = new SigScanTarget(3, "48 89 05 ?? ?? ?? ?? 75 ?? 4C 8D 0D ?? ?? ?? ?? 41 B8 ?? ?? ?? ?? 48 8D 15");
+                // sgg::App::CheckBugReport : MOV RAX,qword ptr [sgg::world]
+                var world_signature_target = new SigScanTarget(3, "48 8B 05 ?? ?? ?? ?? 48 8D 8F ?? ?? ?? ?? 33 D2 41 B8 ?? ?? ?? ?? C6 40 01 00 E8");
+                // sgg::MiscSettingsScreen::OnToggleRumble : MOV param_1,qword ptr [sgg::PlayerManager::INSTANCE
+                var player_manager_signature_target = new SigScanTarget(3, "48 8B 15 ?? ?? ?? ?? 48 8D 3D ?? ?? ?? ?? 33 DB BD");
 
                 var signature_targets = new [] {
                     app_signature_target,
@@ -71,9 +74,8 @@ init
                 vars.world = signature_scanner.Scan(world_signature_target);
                 IntPtr player_manager = signature_scanner.Scan(player_manager_signature_target);
 
-                vars.screen_manager = game.ReadPointer(app + 0x4F0); // 48 8B 8F ? ? ? ? E8 ? ? ? ? 48 8B D8 48 85 C0 0F 84 ? ? ? ? 48 8B 88
-                vars.current_player = game.ReadPointer(game.ReadPointer(player_manager + 0x18));
-                // vars.current_block_count = game.ReadValue<int>((IntPtr)vars.current_player + 0x50);
+                vars.screen_manager = game.ReadPointer(app + 0x698); // App.pScreenManager
+                vars.current_player = game.ReadPointer(game.ReadPointer(player_manager + 0x18)); // PlayerManager.mPlayers
 
                 vars.InitComplete = true;
                 break;
@@ -110,7 +112,7 @@ update
     if (!(vars.InitComplete))
         return false;
 
-    IntPtr hash_table = game.ReadPointer((IntPtr) vars.current_player + 0x48);
+    IntPtr hash_table = game.ReadPointer((IntPtr) vars.current_player + 0x38); // Player.mInputBlocks
     for(int i = 0; i < 5; i++)
     {
         IntPtr block = game.ReadPointer(hash_table + 0x8 * i);
@@ -152,7 +154,7 @@ update
             //vars.Log("(update) block_name: " + block_name);
         }
 
-        // vars.Log("(update) Encountered block: " + block_name);
+        vars.Log("(update) Encountered block: " + block_name);
 
         var boss_killed_block = block_name == "GenericBossKillPresentation" || block_name == "HecateKillPresentation" || block_name == "PrometheusKillPresentation";
         var ignored_boss_map = (
@@ -178,8 +180,8 @@ update
     // Get the array of screen IntPtrs and iterate to find InGameUI screen
     if (vars.screen_manager != IntPtr.Zero)
     {
-        IntPtr screen_vector_begin = game.ReadPointer((IntPtr)vars.screen_manager + 0x48); // sgg::ScreenManager mScreens
-        IntPtr screen_vector_end = game.ReadPointer((IntPtr)vars.screen_manager + 0x50);
+        IntPtr screen_vector_begin = game.ReadPointer((IntPtr)vars.screen_manager + 0x48); // sgg::ScreenManager.mScreens
+        IntPtr screen_vector_end = game.ReadPointer((IntPtr)vars.screen_manager + 0x50); // 0x48 + 0x8
 
         var num_screens = (screen_vector_end.ToInt64() - screen_vector_begin.ToInt64()) / 8;
 
@@ -205,11 +207,11 @@ update
     /* Get our current run time */
     if (vars.game_ui != IntPtr.Zero) // sgg::InGameUI
     {
-        IntPtr runtime_component = game.ReadPointer((IntPtr)vars.game_ui + 0x2F8); // 0x2F8 = mElapsedRunTimeText
+        IntPtr runtime_component = game.ReadPointer((IntPtr)vars.game_ui + 0x300); // InGameUI.mElapsedRunTimeText
         if (runtime_component != IntPtr.Zero)
         {
             /* This might break if the run goes over 99 minutes T_T */
-            current.run_time = game.ReadString(game.ReadPointer(runtime_component + 0x6B0), 0x8); // 48 8D 8E ? ? ? ? 48 8D 05 ? ? ? ? 4C 8B C0 66 0F 1F 44 00
+            current.run_time = game.ReadString(game.ReadPointer(runtime_component + 0x5B8), 0x8); // GUIComponentTextBox.mStringBuilder
             if (current.run_time == "PauseScr")
                 current.run_time = "0:0.10";
         }
@@ -218,7 +220,7 @@ update
     /* Get our current map name */
     if(vars.world != IntPtr.Zero)
     {
-        IntPtr map_data = game.ReadPointer((IntPtr)vars.world + 0x90); // 0x70 + 0x20
+        IntPtr map_data = game.ReadPointer((IntPtr)vars.world + 0xA0); // World.nMap 0x80 + Map.mData 0x20 = 0xA0
         if(map_data != IntPtr.Zero)
             current.map = game.ReadString(map_data, 0x10);
             if (current.map != old.map)
