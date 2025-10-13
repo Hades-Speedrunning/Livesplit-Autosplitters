@@ -57,8 +57,8 @@ init
                 var app_signature_target = new SigScanTarget(3, "48 89 05 ?? ?? ?? ?? 75 ?? 4C 8D 0D ?? ?? ?? ?? 41 B8 ?? ?? ?? ?? 48 8D 15");
                 // sgg::App::CheckBugReport : MOV RAX,qword ptr [sgg::world]
                 var world_signature_target = new SigScanTarget(3, "48 8B 05 ?? ?? ?? ?? 48 8D 8F ?? ?? ?? ?? 33 D2 41 B8 ?? ?? ?? ?? C6 40 01 00 E8");
-                // sgg::MiscSettingsScreen::OnToggleRumble : MOV param_1,qword ptr [sgg::PlayerManager::INSTANCE
-                var player_manager_signature_target = new SigScanTarget(3, "48 8B 15 ?? ?? ?? ?? 48 8D 3D ?? ?? ?? ?? 33 DB BD");
+                // sgg::MiscSettingsScreen::OnToggleRumble : end of func "MOV param_1=>`public:_static_class_sgg:PlayerManager"
+                var player_manager_signature_target = new SigScanTarget(3, "48 8B 15 ?? ?? ?? ?? 48 FF C3 E9 ?? ?? ?? ?? 0F 29 74 24");
 
                 var signature_targets = new [] {
                     app_signature_target,
@@ -112,7 +112,7 @@ update
     if (!(vars.InitComplete))
         return false;
 
-    IntPtr hash_table = game.ReadPointer((IntPtr) vars.current_player + 0x38); // Player.mInputBlocks
+    IntPtr hash_table = game.ReadPointer((IntPtr) vars.current_player + 0x40); // Player.mInputBlocks (0x38) + 0x08
     for(int i = 0; i < 5; i++)
     {
         IntPtr block = game.ReadPointer(hash_table + 0x8 * i);
@@ -234,12 +234,16 @@ update
             }
     }
 
+    splitTime: try {
     vars.time_split = current.run_time.Split(':', '.');
     /* Convert the string time to singles */
     current.total_seconds =
         int.Parse(vars.time_split[0]) * 60 +
         int.Parse(vars.time_split[1]) +
         float.Parse(vars.time_split[2]) / 100;
+    } catch (IndexOutOfRangeException) {
+        current.total_seconds = old.total_seconds;
+    }
 }
 
 onStart
