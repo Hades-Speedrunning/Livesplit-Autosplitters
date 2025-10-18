@@ -18,7 +18,7 @@ state("Hades2")
 
 startup
 {
-    vars.Log = (Action<object>)((output) => print("[Hades 2 ASLtest] " + output));
+    vars.Log = (Action<object>)((output) => print("[Hades 2 ASL] " + output));
     vars.InitComplete = false;
 
     settings.Add("multiWep", false, "Multi Weapon Run");
@@ -414,3 +414,4 @@ shutdown
 {
     vars.CancelSource.Cancel();
 }
+
