@@ -22,11 +22,13 @@ startup
     vars.InitComplete = false;
 
     settings.Add("multiWep", false, "Multi Weapon Run");
+    settings.Add("resetOnSeedRoll", false, "Reset Splits on Seed Reroll");
     settings.Add("houseSplits", false, "Use Crossroads Splits", "multiWep");
     settings.Add("enterBossArena", true, "Split when entering boss arena");
     settings.Add("splitOnBossKill", true, "Split on Boss Kills");
     settings.Add("midbiome", false, "Split when exiting inter-biome");
     settings.Add("routed", false, "Routed (per chamber)");
+    
 }
 
 init
@@ -103,6 +105,7 @@ init
     vars.boss_killed = false;
 
     vars.still_in_arena = false;
+    vars.seed_rerolled = false;
 
     vars.game_ui = IntPtr.Zero;
 }
@@ -112,7 +115,7 @@ update
     if (!(vars.InitComplete))
         return false;
 
-    IntPtr hash_table = game.ReadPointer((IntPtr) vars.current_player + 0x40); // Player.mInputBlocks (0x38) + 0x08
+    IntPtr hash_table = game.ReadPointer((IntPtr) vars.current_player + 0x40); // Player.mInputBlocks
     for(int i = 0; i < 5; i++)
     {
         IntPtr block = game.ReadPointer(hash_table + 0x8 * i);
@@ -156,11 +159,14 @@ update
 
         vars.Log("(update) Encountered block: " + block_name);
 
-        var boss_killed_block = block_name == "GenericBossKillPresentation" || block_name == "HecateKillPresentation" || block_name == "PrometheusKillPresentation";
+        vars.seed_rerolled = block_name == "SpecialInteractChangeNextRunRNG";
+
+        var boss_killed_block = block_name == "GenericBossKillPresentation" || block_name == "ErisKillPresentation" || block_name == "HecateKillPresentation" || block_name == "PrometheusKillPresentation";
         var ignored_boss_map = (
             current.map == "G_MiniBoss02" || current.map == "O_MiniBoss01" || // Uh-Oh! || Charybdis
             current.map == "P_MiniBoss01" || current.map == "Q_MiniBoss02" || // Talos || _ of Typhon
-            current.map == "Q_MiniBoss03" || current.map == "Q_MiniBoss05" || // _ of Typhon
+            current.map == "Q_MiniBoss03" || current.map == "Q_MiniBoss04" || current.map == "Q_MiniBoss05" || // _ of Typhon
+            current.map == "C_Boss01" || // Zagreus
             current.map == "I_Boss01" || current.map == "Q_Boss01" // Chronos - handled by has_beat_final_boss Typhon - handled by has_beat_final_boss
         );
         if (!vars.boss_killed && boss_killed_block && !ignored_boss_map)
@@ -170,7 +176,7 @@ update
         }
 
         if (!vars.has_beat_final_boss &&
-            (block_name == "ChronosKillPresentation" || (block_name == "GenericBossKillPresentation" && current.map == "Q_Boss01")))
+            (block_name == "ChronosKillPresentation" || (block_name == "TyphonHeadKillPresentation" && current.map == "Q_Boss01")))
         {
             vars.Log("(update) Detected Chronos/Typhon kill");
             vars.has_beat_final_boss = true;
@@ -313,41 +319,47 @@ split
     }
 
     // Split on room transition
-    // TODO check in Chronos/Typhon room ??
-    if (!settings["splitOnBossKill"] && entered_new_room)
+    if (entered_new_room)
     {
+        // leaving boss room
+        // TODO check in Chronos/Typhon room ??
         if (current.map == "F_PostBoss01" || current.map == "G_PostBoss01" || // Erebus/Hecate || Oceanus/Sirens
             current.map == "H_PostBoss01" || current.map == "N_PostBoss01" || // Fields/Cerberus || Ephyra/Polyphemus
             current.map == "O_PostBoss01" || current.map == "P_PostBoss01" || // Rift/Eris || Olympus/Prometheus
             current.map == "I_Boss01" || current.map == "Q_Boss01") //  Tartarus/Chronos|| Summit/Typhon
         {
-            vars.Log(current.run_time + " (!splitOnBossKill) Splitting for exiting boss arena: " + old.map);
-            return true;
+            if (!settings["splitOnBossKill"])
+            {
+                vars.Log(current.run_time + " (!splitOnBossKill) Splitting for exiting boss arena: " + old.map);
+                return true;
+            }
         }
-    }
 
-    // Split when leaving interbiome
-    if (settings["midbiome"] && entered_new_room)
-    {
+        // exiting interbiome chamber
         if (old.map == "F_PostBoss01" || old.map == "G_PostBoss01" || // Erebus/Hecate || Oceanus/Sirens
             old.map == "H_PostBoss01" || old.map == "N_PostBoss01" || // Fields/Cerberus || Ephyra/Polyphemus
             old.map == "O_PostBoss01" || old.map == "P_PostBoss01") // Rift/Eris || // Olympus/Prometheus
         {
-            vars.Log(current.run_time + " (midbiome) Splitting for leaving interbiome: " + old.map);
-            return true;
+            if (settings["midbiome"])
+            {
+                vars.Log(current.run_time + " (midbiome) Splitting for leaving interbiome: " + old.map);
+                return true;
+            }
         }
-    }
 
-    // Split on entering boss arena
-    if (settings["enterBossArena"] && entered_new_room)
-    {
-        if (current.map == "F_Boss01" || current.map == "G_Boss01" || // Erebus/Hecate || Oceanus/Sirens
-            current.map == "H_Boss01" || current.map == "I_Boss01" || // Fields/Cerberus || Tartarus/Chronos
-            current.map == "N_Boss01" || current.map == "O_Boss01" || // Ephyra/Polyphemus || Rift/Eris
+        // entering boss chamber
+        if (current.map == "F_Boss01" || current.map == "F_Boss02" || current.map == "G_Boss01" || current.map == "G_Boss02" || // Erebus/Hecate || Oceanus/Sirens
+            current.map == "H_Boss01" || current.map == "H_Boss02" || current.map == "I_Boss01" || // Fields/Cerberus || Tartarus/Chronos
+            current.map == "N_Boss01" || current.map == "N_Boss02" ||current.map == "O_Boss01" || current.map == "O_Boss02" || // Ephyra/Polyphemus || Rift/Eris
             current.map == "P_Boss01" || current.map == "Q_Boss01") // Olympus/Prometheus || Summit/Typhon
         {
-            vars.Log(current.run_time + " (enterBossArena) Splitting for entering boss arena: " + current.map);
-            return true;
+            if (settings["enterBossArena"])
+            {
+                vars.Log(current.run_time + " (enterBossArena) Splitting for entering boss arena: " + current.map);
+                return true;
+
+            }
+
         }
     }
 }
@@ -368,6 +380,11 @@ reset
     if(!settings["multiWep"] && current.map == "Hub_PreRun")
     {
         vars.Log("(reset) Resetting for courtyard");
+        return true;
+    }
+    if(settings["resetOnSeedRoll"] && vars.seed_rerolled)
+    {
+        vars.seed_rerolled = false;
         return true;
     }
 }
@@ -397,3 +414,4 @@ shutdown
 {
     vars.CancelSource.Cancel();
 }
+
