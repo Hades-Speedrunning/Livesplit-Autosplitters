@@ -157,7 +157,7 @@ update
             //vars.Log("(update) block_name: " + block_name);
         }
 
-        // vars.Log("(update) Encountered block: " + block_name);
+        vars.Log("(update) Encountered block: " + block_name);
 
         vars.seed_rerolled = block_name == "SpecialInteractChangeNextRunRNG";
 
@@ -231,6 +231,7 @@ update
             current.map = game.ReadString(map_data, 0x10);
             if (current.map != old.map)
                 vars.Log("(update) Map change: " + old.map + " -> " + current.map);
+
             if (vars.still_in_arena && current.map != old.map)
             {
                 vars.still_in_arena = false;
@@ -346,11 +347,17 @@ split
             }
         }
 
+        // entering chronos/typhon, always splits here
+        if (current.map == "I_Boss01" || current.map == "Q_Boss01")
+        {
+            vars.log(current.run_time + "Splitting for entering final boss arena: " + current.map);
+        }
+
         // entering boss chamber
         if (current.map == "F_Boss01" || current.map == "F_Boss02" || current.map == "G_Boss01" || current.map == "G_Boss02" || // Erebus/Hecate || Oceanus/Sirens
-            current.map == "H_Boss01" || current.map == "H_Boss02" || current.map == "I_Boss01" || // Fields/Cerberus || Tartarus/Chronos
+            current.map == "H_Boss01" || current.map == "H_Boss02" ||  // Fields/Cerberus
             current.map == "N_Boss01" || current.map == "N_Boss02" ||current.map == "O_Boss01" || current.map == "O_Boss02" || // Ephyra/Polyphemus || Rift/Eris
-            current.map == "P_Boss01" || current.map == "Q_Boss01") // Olympus/Prometheus || Summit/Typhon
+            current.map == "P_Boss01") // Olympus/Prometheus 
         {
             if (settings["enterBossArena"])
             {
@@ -413,5 +420,4 @@ shutdown
 {
     vars.CancelSource.Cancel();
 }
-
 
