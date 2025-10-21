@@ -351,6 +351,7 @@ split
         if (current.map == "I_Boss01" || current.map == "Q_Boss01")
         {
             vars.log(current.run_time + "Splitting for entering final boss arena: " + current.map);
+            return true;
         }
 
         // entering boss chamber
@@ -420,4 +421,5 @@ shutdown
 {
     vars.CancelSource.Cancel();
 }
+
 
