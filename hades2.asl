@@ -231,7 +231,6 @@ update
             current.map = game.ReadString(map_data, 0x10);
             if (current.map != old.map)
                 vars.Log("(update) Map change: " + old.map + " -> " + current.map);
-            vars.Log(current.map);
             if (vars.still_in_arena && current.map != old.map)
             {
                 vars.still_in_arena = false;
@@ -414,4 +413,5 @@ shutdown
 {
     vars.CancelSource.Cancel();
 }
+
 
