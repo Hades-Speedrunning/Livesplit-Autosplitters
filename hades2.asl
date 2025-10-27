@@ -58,7 +58,7 @@ init
                 // sgg:App::Instance : MOV qword ptr [sgg::App::INSTANCE]
                 var app_signature_target = new SigScanTarget(3, "48 89 05 ?? ?? ?? ?? 75 ?? 4C 8D 0D ?? ?? ?? ?? 41 B8 ?? ?? ?? ?? 48 8D 15");
                 // sgg::App::CheckBugReport : MOV RAX,qword ptr [sgg::world]
-                var world_signature_target = new SigScanTarget(3, "48 8B 05 ?? ?? ?? ?? 48 8D 8F ?? ?? ?? ?? 33 D2 41 B8 ?? ?? ?? ?? C6 40 01 00 E8");
+                var world_signature_target = new SigScanTarget(3, "48 8B 05 ?? ?? ?? ?? 48 8D 8F ?? ?? ?? ?? 33 D2");
                 // sgg::MiscSettingsScreen::OnToggleRumble : end of func "MOV param_1=>`public:_static_class_sgg:PlayerManager"
                 var player_manager_signature_target = new SigScanTarget(3, "48 8B 15 ?? ?? ?? ?? 48 FF C3 E9 ?? ?? ?? ?? 0F 29 74 24");
 
@@ -421,5 +421,6 @@ shutdown
 {
     vars.CancelSource.Cancel();
 }
+
 
 
