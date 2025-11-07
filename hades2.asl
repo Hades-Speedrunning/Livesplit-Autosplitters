@@ -58,7 +58,7 @@ init
                 // sgg:App::Instance : MOV qword ptr [sgg::App::INSTANCE]
                 var app_signature_target = new SigScanTarget(3, "48 89 05 ?? ?? ?? ?? 75 ?? 4C 8D 0D ?? ?? ?? ?? 41 B8 ?? ?? ?? ?? 48 8D 15");
                 // sgg::App::CheckBugReport : MOV RAX,qword ptr [sgg::world]
-                var world_signature_target = new SigScanTarget(3, "48 8B 05 ?? ?? ?? ?? 48 8D 8F ?? ?? ?? ?? 33 D2");
+                var world_signature_target = new SigScanTarget(3, "48 8B 05 ?? ?? ?? ?? 48 8B CD");
                 // sgg::MiscSettingsScreen::OnToggleRumble : end of func "MOV param_1=>`public:_static_class_sgg:PlayerManager"
                 var player_manager_signature_target = new SigScanTarget(3, "48 8B 15 ?? ?? ?? ?? 48 FF C3 E9 ?? ?? ?? ?? 0F 29 74 24");
 
@@ -166,7 +166,7 @@ update
             current.map == "G_MiniBoss02" || current.map == "O_MiniBoss01" || // Uh-Oh! || Charybdis
             current.map == "P_MiniBoss01" || current.map == "Q_MiniBoss02" || // Talos || _ of Typhon
             current.map == "Q_MiniBoss03" || current.map == "Q_MiniBoss04" || current.map == "Q_MiniBoss05" || // _ of Typhon
-            current.map == "C_Boss01" || // Zagreus
+            current.map == "N_MiniBoss02" || current.map == "C_Boss01" || // erymanthian boar  || Zagreus
             current.map == "I_Boss01" || current.map == "Q_Boss01" // Chronos - handled by has_beat_final_boss Typhon - handled by has_beat_final_boss
         );
         if (!vars.boss_killed && boss_killed_block && !ignored_boss_map)
@@ -325,8 +325,8 @@ split
         // TODO check in Chronos/Typhon room ??
         if (current.map == "F_PostBoss01" || current.map == "G_PostBoss01" || // Erebus/Hecate || Oceanus/Sirens
             current.map == "H_PostBoss01" || current.map == "N_PostBoss01" || // Fields/Cerberus || Ephyra/Polyphemus
-            current.map == "O_PostBoss01" || current.map == "P_PostBoss01" || // Rift/Eris || Olympus/Prometheus
-            current.map == "I_Boss01" || current.map == "Q_Boss01") //  Tartarus/Chronos|| Summit/Typhon
+            current.map == "O_PostBoss01" || current.map == "P_PostBoss01") // Rift/Eris || Olympus/Prometheus
+        
         {
             if (!settings["splitOnBossKill"])
             {
@@ -350,7 +350,7 @@ split
         // entering chronos/typhon, always splits here
         if (current.map == "I_Boss01" || current.map == "Q_Boss01")
         {
-            vars.log(current.run_time + "Splitting for entering final boss arena: " + current.map);
+            vars.Log(current.run_time + "Splitting for entering final boss arena: " + current.map);
             return true;
         }
 
