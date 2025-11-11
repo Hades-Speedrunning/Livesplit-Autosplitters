@@ -167,7 +167,7 @@ update
             current.map == "P_MiniBoss01" || current.map == "Q_MiniBoss02" || // Talos || _ of Typhon
             current.map == "Q_MiniBoss03" || current.map == "Q_MiniBoss04" || current.map == "Q_MiniBoss05" || // _ of Typhon
             current.map == "N_MiniBoss02" || current.map == "C_Boss01" || // erymanthian boar  || Zagreus
-            current.map == "I_Boss01" || current.map == "Q_Boss01" // Chronos - handled by has_beat_final_boss Typhon - handled by has_beat_final_boss
+            current.map == "I_Boss01" || current.map == "Q_Boss01" || current.map== "Q_Boss02" // Chronos - handled by has_beat_final_boss Typhon - handled by has_beat_final_boss
         );
         if (!vars.boss_killed && boss_killed_block && !ignored_boss_map)
         {
@@ -176,7 +176,7 @@ update
         }
 
         if (!vars.has_beat_final_boss &&
-            (block_name == "ChronosKillPresentation" || (block_name == "TyphonHeadKillPresentation" && current.map == "Q_Boss01")))
+            (block_name == "ChronosKillPresentation" || block_name == "TyphonSpecialKillPresentation" || (block_name == "TyphonHeadKillPresentation" && current.map == "Q_Boss01")))
         {
             vars.Log("(update) Detected Chronos/Typhon kill");
             vars.has_beat_final_boss = true;
@@ -348,7 +348,7 @@ split
         }
 
         // entering chronos/typhon, always splits here
-        if (current.map == "I_Boss01" || current.map == "Q_Boss01")
+        if (current.map == "I_Boss01" || current.map == "Q_Boss01" || current.map == "Q_Boss02" )
         {
             vars.Log(current.run_time + "Splitting for entering final boss arena: " + current.map);
             return true;
