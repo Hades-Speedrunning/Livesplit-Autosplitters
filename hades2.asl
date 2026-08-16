@@ -60,9 +60,9 @@ init
                 // sgg:App::Instance : MOV qword ptr [sgg::App::INSTANCE]
                 var app_signature_target = new SigScanTarget(3, "48 89 05 ?? ?? ?? ?? 75 ?? 4C 8D 0D ?? ?? ?? ?? 41 B8 ?? ?? ?? ?? 48 8D 15");
                 // sgg::App::CheckBugReport : MOV RAX,qword ptr [sgg::world]
-                var world_signature_target = new SigScanTarget(3, "48 8B 05 ?? ?? ?? ?? 48 8B CD");
-                // sgg::MiscSettingsScreen::OnToggleRumble : end of func "MOV param_1=>`public:_static_class_sgg:PlayerManager"
-                var player_manager_signature_target = new SigScanTarget(3, "48 8B 15 ?? ?? ?? ?? 48 FF C3 E9 ?? ?? ?? ?? 0F 29 74 24");
+                var world_signature_target = new SigScanTarget(3, "48 8B 05 ?? ?? ?? ?? 48 8B CD C6");
+                // sgg::PlayerManager::INSTANCE : MOV RAX,qword ptr [sgg::PlayerManager::INSTANCE]
+                var player_manager_signature_target = new SigScanTarget(3,"48 8B 05 ?? ?? ?? ?? 48 85 C0 75 ?? 65 48 8B 04 25 58 00 00 00");
 
                 var signature_targets = new [] {
                     app_signature_target,
@@ -78,7 +78,7 @@ init
                 vars.world = signature_scanner.Scan(world_signature_target);
                 IntPtr player_manager = signature_scanner.Scan(player_manager_signature_target);
 
-                vars.screen_manager = game.ReadPointer(app + 0x698); // App.pScreenManager
+                vars.screen_manager = game.ReadPointer(app + 0x698); // App.pScreenManager 
                 vars.current_player = game.ReadPointer(game.ReadPointer(player_manager + 0x18)); // PlayerManager.mPlayers
 
                 vars.InitComplete = true;
@@ -224,7 +224,7 @@ update
         if (runtime_component != IntPtr.Zero)
         {
             /* This might break if the run goes over 99 minutes T_T */
-            current.run_time = game.ReadString(game.ReadPointer(runtime_component + 0x5B8), 0x8); // GUIComponentTextBox.mStringBuilder
+            current.run_time = game.ReadString(game.ReadPointer(runtime_component + 0x5a8), 0x8); // GUIComponentTextBox.mStringBuilder
             if (current.run_time == "PauseScr")
                 current.run_time = "0:0.10";
         }
